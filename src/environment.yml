@@ -1,0 +1,22 @@
+name: C:\Miniconda3\envs\onus_api
+dependencies:
+- pip=9.0.1=py36_1
+- python=3.6.2=0
+- setuptools=27.2.0=py36_1
+- vs2015_runtime=14.0.25420=0
+- wheel=0.29.0=py36_0
+- pip:
+  - aniso8601==1.2.1
+  - click==6.7
+  - flask==0.12.2
+  - flask-restful==0.3.6
+  - flask-sqlalchemy==2.2
+  - itsdangerous==0.24
+  - jinja2==2.9.6
+  - markupsafe==1.0
+  - python-dateutil==2.6.1
+  - pytz==2017.2
+  - six==1.10.0
+  - sqlalchemy==1.1.13
+  - werkzeug==0.12.2
+  - Flask-HTTPAuth==3.2.3
