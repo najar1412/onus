@@ -299,7 +299,6 @@ class TasksL(Resource):
 
     @auth.login_required
     def post(self):
-
         parser = reqparse.RequestParser()
 
         parser.add_argument('title', type=str, help='helper text')
