@@ -115,7 +115,7 @@ class Entry(Resource):
     def get(self):
         entry = {
             'name': 'onus api',
-            'version': '0.01',
+            'version': 'v1',
             'resources': ''
         }
 
@@ -166,12 +166,16 @@ class Accounts(Resource):
     @auth.login_required
     def delete(self, id):
         raw_account = Account.query.filter_by(id=id).first()
-        db.session.delete(raw_account)
-        db.session.commit()
 
-        response = resp(status='success', message='account successfully deleted')
+        if auth.username() == raw_account.username:
+            db.session.delete(raw_account)
+            db.session.commit()
 
-        return response
+            response = resp(status='success', message='account successfully deleted')
+            return response
+
+        else:
+            return resp(message='Account can only be if logged in as the same account.')
 
 
 class AccountsL(Resource):
@@ -217,12 +221,10 @@ class Tasks(Resource):
 
         if raw_project != None:
             response = resp(data=convert.jsonify((raw_project,)), status='success')
-
             return response, 200
 
         else:
             response = resp(status='failed', error='no such task id')
-
             return response, 400
 
 
@@ -278,13 +280,19 @@ class Tasks(Resource):
 
     @auth.login_required
     def delete(self, id):
-        raw_task = Task.query.filter_by(id=id).first()
-        db.session.delete(raw_task)
-        db.session.commit()
+        get_task = Task.query.filter_by(id=id).first()
+        get_account = Account.query.filter_by(username=auth.username()).first()
 
-        response = resp(status='success', message='task successfully deleted')
+        if get_task in get_account.tasks:
+            db.session.delete(get_task)
+            db.session.commit()
 
-        return response, 201
+            response = resp(status='success', message='task successfully deleted')
+
+            return response, 201
+
+        else:
+            return resp(message='task can only deleted by the account that posted it')
 
 
 class TasksL(Resource):
@@ -293,7 +301,6 @@ class TasksL(Resource):
         raw_tasks = Task.query.all()
 
         response = resp(data=convert.jsonify(raw_tasks), status='success')
-
         return response, 200
 
 
@@ -321,7 +328,6 @@ class TasksL(Resource):
 
         else:
             response = resp(error='missing required data', message='')
-
             return response, 400
 
 
