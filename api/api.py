@@ -26,8 +26,18 @@ account_tasks = db.Table('account_tasks',
     db.Column('task_id', db.Integer, db.ForeignKey('task.id'))
 )
 
-task_furfill = db.Table('task_furfill',
+task_fulfill = db.Table('task_fulfill',
     db.Column('task_id', db.Integer, db.ForeignKey('task.id')),
+    db.Column('account_id', db.Integer, db.ForeignKey('account.id'))
+)
+
+task_comment = db.Table('task_comment',
+    db.Column('task_id', db.Integer, db.ForeignKey('task.id')),
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id'))
+)
+
+comment_account = db.Table('comment_account',
+    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id')),
     db.Column('account_id', db.Integer, db.ForeignKey('account.id'))
 )
 
@@ -39,6 +49,7 @@ class Account(db.Model):
     initdate = db.Column(db.String, default=str(datetime.datetime.utcnow()))
 
     # relationships
+    # comments
     tasks = db.relationship('Task', secondary=account_tasks,
         backref=db.backref('posted_by', lazy='dynamic'))
 
@@ -59,9 +70,11 @@ class Task(db.Model):
     completed = db.Column(db.Boolean, default=False)
 
     # relationships
-    furfill = db.relationship('Account', secondary=task_furfill,
-        backref=db.backref('furfilling', lazy='dynamic'))
-    # furfilled_by = db.Column(db.String, default=str('furfille by data'))
+    fulfill = db.relationship('Account', secondary=task_fulfill,
+        backref=db.backref('fulfilling', lazy='dynamic'))
+    comments = db.relationship('Comment', secondary=task_comment,
+        backref=db.backref('task', lazy='dynamic'))
+    # fulfilled_by = db.Column(db.String, default=str('fulfille by data'))
     # user_checkin = db.Column(db.String, default=str('check in data'))
     # checkout = db.Column(db.String, default=str('check out data'))
 
@@ -72,6 +85,24 @@ class Task(db.Model):
     def __repr__(self):
         return '<Task {}>'.format(self.id)
 
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.String)
+    initdate = db.Column(db.String, default=str(datetime.datetime.utcnow()))
+
+    # relationships
+    accounts = db.relationship('Account', secondary=comment_account,
+        backref=db.backref('comments', lazy='dynamic'))
+
+    def __init__(self, content):
+        self.content = content
+
+    def __repr__(self):
+        return '<Comment {}>'.format(self.id)
+
+    # relationship
+    # task
 
 db.create_all()
 
@@ -217,10 +248,13 @@ class AccountsL(Resource):
 class Tasks(Resource):
     @auth.login_required
     def get(self, id):
-        raw_project = Task.query.filter_by(id=id).first()
+        raw_task = Task.query.filter_by(id=id).first()
+        for x in raw_task.comments:
+            print(x.accounts)
 
-        if raw_project != None:
-            response = resp(data=convert.jsonify((raw_project,)), status='success')
+        if raw_task != None:
+
+            response = resp(data=convert.jsonify((raw_task,)), status='success')
             return response, 200
 
         else:
@@ -232,8 +266,9 @@ class Tasks(Resource):
     def put(self, id):
         parser = reqparse.RequestParser()
         parser.add_argument('completed', type=int, help='help text')
-        parser.add_argument('furfill', type=int, help='help text')
+        parser.add_argument('fulfill', type=int, help='help text')
         parser.add_argument('subscribe', type=int, help='help text')
+        parser.add_argument('comment', type=str, help='help text')
         args = parser.parse_args()
 
         get_task = Task.query.filter_by(id=id).first()
@@ -251,29 +286,47 @@ class Tasks(Resource):
                 response = resp(data=convert.jsonify((get_task,)), link='/tasks/{}'.format(get_task.id))
                 return response, 201
 
-            if args['furfill'] == 1:
+            if args['fulfill'] == 1:
                 get_account = Account.query.filter_by(username=auth.username()).first()
-                if get_account not in get_task.furfill:
-                    get_task.furfill.append(get_account)
+                if get_account not in get_task.fulfill:
+                    get_task.fulfill.append(get_account)
                     db.session.commit()
 
                     response = resp(status='success', data=convert.jsonify((get_task,)), link='/tasks/{}'.format(get_task.id))
                     return response, 201
 
                 else:
-                    return resp(message='accound id already exists in task.furfill')
+                    return resp(message='accound id already exists in task.fulfill')
 
-            elif args['furfill'] == 0:
+            elif args['fulfill'] == 0:
                 get_account = Account.query.filter_by(username=auth.username()).first()
-                if get_account in get_task.furfill:
-                    get_task.furfill.remove(get_account)
+                if get_account in get_task.fulfill:
+                    get_task.fulfill.remove(get_account)
                     db.session.commit()
 
                     response = resp(data=convert.jsonify((get_task,)), link='/tasks/{}'.format(get_task.id))
                     return response, 201
 
                 else:
-                    return resp(message='accound id does not exist in tasks.furfill')
+                    return resp(message='accound id does not exist in tasks.fulfill')
+
+            if args['comment']:
+                get_account = Account.query.filter_by(username=auth.username()).first()
+                get_task = Task.query.filter_by(id=id).first()
+
+                new_comment = Comment(content=args['comment'])
+                new_comment.accounts.append(get_account)
+
+                get_task.comments.append(new_comment)
+
+                db.session.add(new_comment)
+                db.session.commit()
+
+
+                return {'there is a comment': args['comment']}
+
+            else:
+                return {'no comments': args['comment']}
         else:
             return resp(error='no such task id')
 
@@ -296,7 +349,6 @@ class Tasks(Resource):
 
 
 class TasksL(Resource):
-    @auth.login_required
     def get(self):
         raw_tasks = Task.query.all()
 
@@ -307,7 +359,6 @@ class TasksL(Resource):
     @auth.login_required
     def post(self):
         parser = reqparse.RequestParser()
-
         parser.add_argument('title', type=str, help='helper text')
         args = parser.parse_args()
 
