@@ -36,11 +36,6 @@ task_comment = db.Table('task_comment',
     db.Column('comment_id', db.Integer, db.ForeignKey('comment.id'))
 )
 
-comment_account = db.Table('comment_account',
-    db.Column('comment_id', db.Integer, db.ForeignKey('comment.id')),
-    db.Column('account_id', db.Integer, db.ForeignKey('account.id'))
-)
-
 
 class Account(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -60,7 +55,7 @@ class Account(db.Model):
 
 
     def __repr__(self):
-        return '<Task {}>'.format(self.id)
+        return '<Account {}>'.format(self.id)
 
 
 class Task(db.Model):
@@ -90,10 +85,7 @@ class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String)
     initdate = db.Column(db.String, default=str(datetime.datetime.utcnow()))
-
-    # relationships
-    accounts = db.relationship('Account', secondary=comment_account,
-        backref=db.backref('comments', lazy='dynamic'))
+    account = db.Column(db.Integer)
 
     def __init__(self, content):
         self.content = content
@@ -130,6 +122,7 @@ def resp(status=None, data=None, link=None, error=None, message=None):
 @auth.verify_password
 def verify(username, password):
     get_account = Account.query.filter_by(username=username).first()
+
     if not Account.query.filter_by(username=username).first():
         return False
 
@@ -249,8 +242,6 @@ class Tasks(Resource):
     @auth.login_required
     def get(self, id):
         raw_task = Task.query.filter_by(id=id).first()
-        for x in raw_task.comments:
-            print(x.accounts)
 
         if raw_task != None:
 
@@ -310,12 +301,12 @@ class Tasks(Resource):
                 else:
                     return resp(message='accound id does not exist in tasks.fulfill')
 
-            if args['comment']:
+            if args['comment'] != None:
                 get_account = Account.query.filter_by(username=auth.username()).first()
                 get_task = Task.query.filter_by(id=id).first()
 
                 new_comment = Comment(content=args['comment'])
-                new_comment.accounts.append(get_account)
+                new_comment.account = int(get_account.id)
 
                 get_task.comments.append(new_comment)
 
@@ -326,7 +317,9 @@ class Tasks(Resource):
                 return {'there is a comment': args['comment']}
 
             else:
-                return {'no comments': args['comment']}
+                return {'Better error': 'catching here'}
+
+
         else:
             return resp(error='no such task id')
 
@@ -381,6 +374,22 @@ class TasksL(Resource):
             response = resp(error='missing required data', message='')
             return response, 400
 
+
+class Comments(Resource):
+    # imp comments
+    def get(self, id):
+        pass
+
+    def put(self, id):
+        pass
+
+    def delete(self, id):
+        pass
+
+
+class CommentsL(Resource):
+    # imp comment lists
+    pass
 
 # routes
 api.add_resource(Entry, '/')
