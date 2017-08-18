@@ -384,12 +384,29 @@ class Comments(Resource):
         pass
 
     def delete(self, id):
-        pass
+        get_comment = Comment.query.filter_by(id=id).first()
+        get_account = Account.query.filter_by(username=auth.username()).first()
+
+        if get_comment.account == get_account.id:
+            db.session.delete(get_comment)
+            db.session.commit()
+
+            return resp(message='comment successfully deleted')
+
+        else:
+            return resp(message='only account that posted the comment can delete it')
+
+        return {'comment': convert.jsonify((get_comment,))}
+
 
 
 class CommentsL(Resource):
-    # imp comment lists
-    pass
+    def get(self):
+        pass
+
+    def post(self):
+        pass
+
 
 # routes
 api.add_resource(Entry, '/')
@@ -397,6 +414,7 @@ api.add_resource(Accounts, '/accounts/<id>')
 api.add_resource(AccountsL, '/accounts')
 api.add_resource(Tasks, '/tasks/<id>')
 api.add_resource(TasksL, '/tasks')
+api.add_resource(Comments, '/comments/<id>')
 
 
 if __name__ == '__main__':
